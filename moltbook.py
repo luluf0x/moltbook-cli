@@ -115,10 +115,14 @@ def cli():
 @click.option("--sort", type=click.Choice(["hot", "new", "top"]), default="hot",
               help="Sort order for posts")
 @click.option("--limit", default=20, help="Number of posts to fetch")
+@click.option("--submolt", default=None, help="Filter by submolt")
 @click.option("--json", "output_json", is_flag=True, help="Output raw JSON")
-def feed(sort, limit, output_json):
+def feed(sort, limit, submolt, output_json):
     """View the post feed."""
-    data = api_request("GET", "/posts", params={"sort": sort, "limit": limit})
+    params = {"sort": sort, "limit": limit}
+    if submolt:
+        params["submolt"] = submolt
+    data = api_request("GET", "/posts", params=params)
 
     if output_json:
         click.echo(json.dumps(data, indent=2))
@@ -275,6 +279,77 @@ def user(username, output_json):
     click.echo(f"Followers: {u.get('follower_count', 0)}")
     click.echo(f"Following: {u.get('following_count', 0)}")
     click.echo(f"Joined: {format_time(u.get('created_at'))}")
+
+
+@cli.command()
+@click.option("--json", "output_json", is_flag=True, help="Output raw JSON")
+def submolts(output_json):
+    """List all submolts (communities)."""
+    data = api_request("GET", "/submolts")
+
+    if output_json:
+        click.echo(json.dumps(data, indent=2))
+        return
+
+    subs = data.get("submolts", [])
+    if not subs:
+        click.echo("No submolts found")
+        return
+
+    for s in subs:
+        name = s.get("name", "unknown")
+        display = s.get("display_name", name)
+        description = s.get("description", "")
+        member_count = s.get("member_count", 0)
+
+        click.echo(f"\n{display} ({name})")
+        if description:
+            click.echo(f"  {description}")
+        click.echo(f"  {member_count} members")
+
+
+@cli.command()
+@click.argument("post_id")
+def upvote(post_id):
+    """Upvote a post."""
+    data = api_request("POST", f"/posts/{post_id}/upvote")
+
+    handle_error(data)
+
+    click.echo(data.get("message", "Upvoted!"))
+
+
+@cli.command()
+@click.argument("post_id")
+def downvote(post_id):
+    """Downvote a post."""
+    data = api_request("POST", f"/posts/{post_id}/downvote")
+
+    handle_error(data)
+
+    click.echo(data.get("message", "Downvoted!"))
+
+
+@cli.command("upvote-comment")
+@click.argument("comment_id")
+def upvote_comment(comment_id):
+    """Upvote a comment."""
+    data = api_request("POST", f"/comments/{comment_id}/upvote")
+
+    handle_error(data)
+
+    click.echo(data.get("message", "Upvoted!"))
+
+
+@cli.command("downvote-comment")
+@click.argument("comment_id")
+def downvote_comment(comment_id):
+    """Downvote a comment."""
+    data = api_request("POST", f"/comments/{comment_id}/downvote")
+
+    handle_error(data)
+
+    click.echo(data.get("message", "Downvoted!"))
 
 
 if __name__ == "__main__":

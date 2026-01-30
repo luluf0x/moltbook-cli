@@ -363,3 +363,164 @@ class TestAuthHeader:
 
             call_args = mock_req.call_args
             assert call_args[1]["headers"]["Authorization"] == "Bearer test_api_key"
+
+
+class TestFeedSubmoltFilter:
+    def test_feed_with_submolt(self, runner, mock_api_key):
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {"posts": [SAMPLE_POST]}
+
+        with patch("requests.request", return_value=response) as mock_req:
+            result = runner.invoke(cli, ["feed", "--submolt", "programming"])
+
+            assert result.exit_code == 0
+            call_args = mock_req.call_args
+            assert call_args[1]["params"]["submolt"] == "programming"
+
+    def test_feed_without_submolt(self, runner, mock_api_key):
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {"posts": []}
+
+        with patch("requests.request", return_value=response) as mock_req:
+            runner.invoke(cli, ["feed"])
+
+            call_args = mock_req.call_args
+            assert "submolt" not in call_args[1]["params"]
+
+
+class TestSubmoltsCommand:
+    def test_submolts_list(self, runner, mock_api_key):
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {
+            "submolts": [
+                {
+                    "name": "general",
+                    "display_name": "General",
+                    "description": "Main community",
+                    "member_count": 1000,
+                },
+                {
+                    "name": "programming",
+                    "display_name": "Programming",
+                    "description": "Code talk",
+                    "member_count": 500,
+                },
+            ]
+        }
+
+        with patch("requests.request", return_value=response):
+            result = runner.invoke(cli, ["submolts"])
+
+            assert result.exit_code == 0
+            assert "General" in result.output
+            assert "general" in result.output
+            assert "Programming" in result.output
+            assert "1000 members" in result.output
+
+    def test_submolts_empty(self, runner, mock_api_key):
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {"submolts": []}
+
+        with patch("requests.request", return_value=response):
+            result = runner.invoke(cli, ["submolts"])
+
+            assert result.exit_code == 0
+            assert "No submolts found" in result.output
+
+    def test_submolts_json(self, runner, mock_api_key):
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {"submolts": [{"name": "general"}]}
+
+        with patch("requests.request", return_value=response):
+            result = runner.invoke(cli, ["submolts", "--json"])
+
+            assert result.exit_code == 0
+            output = json.loads(result.output)
+            assert "submolts" in output
+
+
+class TestUpvoteCommand:
+    def test_upvote_success(self, runner, mock_api_key):
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {"success": True, "message": "Upvoted!"}
+
+        with patch("requests.request", return_value=response) as mock_req:
+            result = runner.invoke(cli, ["upvote", "abc123"])
+
+            assert result.exit_code == 0
+            assert "Upvoted" in result.output
+
+            call_args = mock_req.call_args
+            assert call_args[0][0] == "POST"
+            assert "/posts/abc123/upvote" in call_args[0][1]
+
+    def test_upvote_already_voted(self, runner, mock_api_key):
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {
+            "success": False,
+            "error": "Already voted on this post",
+        }
+
+        with patch("requests.request", return_value=response):
+            result = runner.invoke(cli, ["upvote", "abc123"])
+
+            assert result.exit_code == 1
+            assert "Already voted" in result.output
+
+
+class TestDownvoteCommand:
+    def test_downvote_success(self, runner, mock_api_key):
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {"success": True, "message": "Downvoted!"}
+
+        with patch("requests.request", return_value=response) as mock_req:
+            result = runner.invoke(cli, ["downvote", "abc123"])
+
+            assert result.exit_code == 0
+            assert "Downvoted" in result.output
+
+            call_args = mock_req.call_args
+            assert call_args[0][0] == "POST"
+            assert "/posts/abc123/downvote" in call_args[0][1]
+
+
+class TestUpvoteCommentCommand:
+    def test_upvote_comment_success(self, runner, mock_api_key):
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {"success": True, "message": "Upvoted!"}
+
+        with patch("requests.request", return_value=response) as mock_req:
+            result = runner.invoke(cli, ["upvote-comment", "comment123"])
+
+            assert result.exit_code == 0
+            assert "Upvoted" in result.output
+
+            call_args = mock_req.call_args
+            assert call_args[0][0] == "POST"
+            assert "/comments/comment123/upvote" in call_args[0][1]
+
+
+class TestDownvoteCommentCommand:
+    def test_downvote_comment_success(self, runner, mock_api_key):
+        response = MagicMock()
+        response.status_code = 200
+        response.json.return_value = {"success": True, "message": "Downvoted!"}
+
+        with patch("requests.request", return_value=response) as mock_req:
+            result = runner.invoke(cli, ["downvote-comment", "comment123"])
+
+            assert result.exit_code == 0
+            assert "Downvoted" in result.output
+
+            call_args = mock_req.call_args
+            assert call_args[0][0] == "POST"
+            assert "/comments/comment123/downvote" in call_args[0][1]
