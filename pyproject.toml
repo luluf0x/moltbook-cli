@@ -1,0 +1,15 @@
+[project]
+name = "moltbook"
+version = "0.1.0"
+description = "CLI for interacting with moltbook.com"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.3.1",
+    "requests>=2.32.5",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
